@@ -172,7 +172,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #8bb2ff;outline-offse
        <button class="small-tool word" id="scanBtn" aria-pressed="false">読み取り</button>
       </div>
      </div>
-     <div class="canvas-wrap"><canvas id="mazeCanvas" class="board" width="840" height="840" tabindex="0" aria-label="QRコード迷路。PCでは矢印キー、スマホではスワイプで移動"></canvas></div>
+     <div class="canvas-wrap"><canvas id="mazeCanvas" class="board" width="840" height="840" tabindex="0" aria-label="QRコード迷路。PCでは矢印キーまたはWASD、スマホではスワイプで移動"></canvas></div>
      <div class="scan-status" id="scanStatus" aria-live="polite">読み取り表示中 · タイマー停止</div>
     </div>
     <aside class="sidebar">
@@ -184,7 +184,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #8bb2ff;outline-offse
      </div></section>
      <section class="control-panel" aria-label="ゲーム操作"><h2 class="section-title">ゲーム操作</h2>
       <div class="actions"><button class="btn accent" id="hintBtn">ヒント</button><button class="btn" id="restartBtn">やり直す</button><button class="btn" id="qrBtn">QR保存</button><button class="btn" id="changeBtn">URL変更</button></div>
-      <div class="instructions"><span class="pc-help">矢印キー</span><span class="touch-help"> / スワイプ</span>で移動。紫の地点は自動ワープ。</div>
+      <div class="instructions"><span class="pc-help">矢印キー / WASD</span><span class="touch-help"> / スワイプ</span>で移動。紫の地点は自動ワープ。</div>
       <div class="legend"><span><i style="background:#35bdfa"></i>現在地</span><span><i style="background:#41be77"></i>ゴール</span><span><i style="background:#a789e9"></i>ワープ</span></div>
      </section>
     </aside>
@@ -665,8 +665,9 @@ $('mazeCanvas').addEventListener('pointercancel',e=>{pointers.delete(e.pointerId
 document.addEventListener('keydown',e=>{
  if(e.key==='Escape'&&modalName){closeModal();return;}
  if(!game||game.done||modalName||!$('gamePage').classList.contains('active'))return;
- const map={ArrowUp:0,ArrowDown:1,ArrowLeft:2,ArrowRight:3};if(!(e.key in map))return;
- e.preventDefault();move(map[e.key]);
+ const map={ArrowUp:0,ArrowDown:1,ArrowLeft:2,ArrowRight:3,w:0,W:0,a:2,A:2,s:1,S:1,d:3,D:3};
+ const direction=map[e.key];if(direction===undefined)return;
+ e.preventDefault();move(direction);
 });
 $('startBtn').onclick=startGame;
 $('urlInput').addEventListener('keydown',e=>{if(e.key==='Enter')startGame();});
