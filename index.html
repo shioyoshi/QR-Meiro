@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f9fc">
+<meta name="description" content="URLをQRコード迷路に変えるゲーム。難易度は実際の最短ルートで調整。">
+<title>QR迷路</title>
+<style>
+:root{--bg:#f7f9fc;--white:#fff;--ink:#15263e;--muted:#7b889c;--blue:#205fe2;--blue-light:#eef4ff;--border:#e5eaf1;--purple:#9867e7;--green:#15985c}
+*{box-sizing:border-box}
+html{color-scheme:light}
+body{margin:0;min-height:100dvh;background:var(--bg);color:var(--ink);font-family:Inter,-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Noto Sans JP",Meiryo,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,input{font:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.42}
+button:focus-visible,input:focus-visible{outline:3px solid #8bb2ff;outline-offset:2px}
+.app{min-height:100dvh}
+.mast{height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(16px,3.1vw,42px);gap:16px;border-bottom:1px solid var(--border);background:#fff}
+.logo{display:inline-flex;align-items:center;gap:11px;font-size:16px;font-weight:800;letter-spacing:.12em;white-space:nowrap}
+.logo-mark{width:22px;height:22px;display:grid;grid-template-columns:repeat(3,1fr);gap:2.5px;transform:rotate(0deg)}
+.logo-mark i{background:var(--blue);border-radius:1.5px;display:block}.logo-mark i:nth-child(2){opacity:.35}.logo-mark i:nth-child(3){opacity:.75}.logo-mark i:nth-child(5){opacity:.65}.logo-mark i:nth-child(7){opacity:.45}
+.mast-side{display:flex;align-items:center;gap:6px}
+.text-button{border:1px solid transparent;background:none;border-radius:9px;color:#53647b;font-weight:650;padding:9px 12px;font-size:12px;white-space:nowrap}
+.text-button:hover{background:#f1f5fa}
+.page:not(.active){display:none!important}.page.active{display:block}
+.home{display:grid;place-items:center;min-height:calc(100dvh - 62px);padding:24px 18px 11vh}
+.setup{width:min(470px,100%);background:#fff;border:1px solid var(--border);border-radius:20px;padding:clamp(22px,5vw,36px);box-shadow:0 18px 60px rgba(22,45,82,.045)}
+.setup h1{font-size:clamp(23px,6vw,30px);font-weight:800;letter-spacing:-.045em;margin:0 0 29px}
+.field{margin-bottom:21px}.field-label{display:block;font-size:12px;color:#5e6e84;font-weight:750;margin:0 0 10px}
+.input-row{display:flex;align-items:center;border:1.5px solid #d9e2ef;border-radius:12px;transition:border-color .15s;overflow:hidden}
+.input-row:focus-within{border-color:var(--blue)}
+.input-row input{flex:1;min-width:0;outline:none!important;border:none;background:transparent;padding:15px 15px;font-size:15px;color:var(--ink)}
+.input-row input::placeholder{color:#9aa7b6}
+.erase{background:transparent;border:0;color:#8492a6;width:39px;height:43px;font-size:18px;font-weight:400}
+.erase:hover{color:var(--ink)}
+.difficulty-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.diff{position:relative;cursor:pointer;display:block}
+.diff input{position:absolute;opacity:0;pointer-events:none}
+.diff-card{border:1.5px solid #e2e8f1;min-height:74px;border-radius:11px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;background:#fff;transition:background .15s,border-color .15s}
+.diff input:checked+.diff-card{background:var(--blue-light);border-color:var(--blue)}
+.diff input:focus-visible+.diff-card{outline:3px solid #8eb5ff;outline-offset:2px}
+.diff-name{font-size:14px;font-weight:770}.diff-detail{font-size:10px;color:#7a8aa0}
+.btn{background:white;border:1px solid #dfe6ef;color:var(--ink);border-radius:10px;font-size:13px;font-weight:730;min-height:43px;padding:10px 13px;display:inline-flex;justify-content:center;align-items:center;gap:7px;transition:background .12s,border-color .12s}
+.btn:hover{background:#f7faff;border-color:#cbd9ee}
+.btn.primary{background:var(--blue);color:white;border-color:var(--blue)}
+.btn.primary:hover{background:#144fc7}
+.btn.primary:disabled{background:#a9badc}
+.start-btn{width:100%;min-height:51px;margin-top:6px;font-size:15px}
+.error{display:none;color:#ae3b4f;font-size:12px;line-height:1.5;margin:13px 0 0}
+.game-layout{display:grid;grid-template-columns:minmax(0,1fr) 282px;gap:24px;max-width:1600px;margin:0 auto;padding:16px 24px 18px;align-items:stretch;min-height:calc(100dvh - 62px)}
+.board-panel{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start}
+.board-top{display:flex;align-items:center;justify-content:space-between;gap:10px;width:min(calc(100dvh - 125px),100%);min-height:43px;margin-bottom:5px}
+.board-meta{display:flex;align-items:center;gap:8px;min-width:0}
+.url-display{font-size:12px;font-weight:700;color:#52647c;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.diff-tag{flex:none;font-size:10px;color:#5d79a6;background:#ecf2fa;padding:5px 7px;border-radius:5px;font-weight:750;white-space:nowrap}
+.board-tools{display:flex;gap:3px;align-items:center;flex:none}
+.small-tool{min-width:32px;min-height:32px;padding:4px 7px;border:none;border-radius:8px;background:transparent;color:#546783;font-size:17px;line-height:1;font-weight:550}
+.small-tool:hover{background:#eaf0f7}
+.small-tool.word{font-size:11px;min-width:64px;padding:7px 9px;font-weight:750}
+.small-tool.active{color:var(--blue);background:#e8f0ff}
+.zoom-value{min-width:39px;text-align:center;font-size:10px;color:#8190a3;font-variant-numeric:tabular-nums}
+.canvas-wrap{width:min(calc(100dvh - 125px),100%);aspect-ratio:1;position:relative;overflow:hidden;background:#fff;border:1px solid #e8ecf3;border-radius:7px;line-height:0;flex:none}
+.board{display:block;width:100%;height:100%;touch-action:none;user-select:none;-webkit-user-select:none;image-rendering:pixelated}
+.sidebar{display:flex;min-height:0;flex-direction:column;justify-content:space-between;gap:15px}
+.stat-panel,.control-panel{background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px}
+.section-title{font-size:12px;font-weight:800;letter-spacing:.015em;margin:0 0 15px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.stat{min-width:0;background:#f7f9fc;border-radius:9px;padding:14px 13px 12px}
+.stat .key{font-size:11px;color:var(--muted);margin-bottom:8px}
+.stat .value{font-size:23px;line-height:1.15;font-weight:790;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.actions .btn{padding:10px 6px;min-height:44px}
+.actions .btn.accent{background:var(--blue-light);color:var(--blue);border-color:#dce8ff}
+.instructions{margin:17px 0 0;padding-top:15px;border-top:1px solid var(--border);color:#6f7d90;font-size:11px;line-height:1.7}
+.legend{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;color:#8894a4;font-size:10px}
+.legend i{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle}
+.scan-status{display:none;font-size:11px;font-weight:650;color:var(--blue);padding:8px 0}
+.scan-status.show{display:block}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#18314c;color:#fff;border-radius:10px;padding:10px 14px;font-size:12px;z-index:40;max-width:calc(100% - 24px);text-align:center;opacity:0;transition:opacity .15s;pointer-events:none}
+.toast.show{opacity:1}
+.modal-wrap{position:fixed;inset:0;background:rgba(13,28,46,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:30}
+.modal-wrap.open{display:flex}
+.modal-box{background:white;border-radius:17px;width:min(430px,100%);max-height:95dvh;overflow:auto;padding:29px 25px 23px;position:relative;box-shadow:0 25px 80px #10203733}
+.modal-close{position:absolute;top:12px;right:12px;border:none;border-radius:8px;background:#f5f7fa;width:31px;height:31px;color:#6e7d90;font-size:21px;line-height:1}
+.modal-title{text-align:center;font-size:22px;letter-spacing:-.035em;margin:7px 27px 9px;font-weight:800}
+.modal-sub{text-align:center;font-size:12px;color:var(--muted);line-height:1.65;margin:0 0 14px}
+.modal-actions{display:grid;gap:9px}.modal-actions .btn{width:100%}
+.result-stars{text-align:center;letter-spacing:4px;font-size:33px;color:#d7a437;margin:14px 0 8px}
+.result-sub{text-align:center;font-size:12px;color:#71819a;margin-bottom:22px}
+.result-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:15px 0 19px}
+.result-stat{background:#f6f8fb;border-radius:9px;padding:14px 4px;text-align:center}
+.result-stat .label{font-size:10px;color:var(--muted);margin-bottom:8px}
+.result-stat .value{font-size:16px;font-weight:780;font-variant-numeric:tabular-nums}
+.fine{text-align:center;color:#8b96a8;font-size:11px;line-height:1.6;margin:8px 0 19px}
+.qr-box{width:min(325px,100%);padding:8px;margin:15px auto 18px;background:#fff;display:grid;place-items:center}
+.qr-box canvas{width:100%;height:auto;image-rendering:pixelated}
+.record-list{max-height:300px;overflow:auto;margin:15px 0}.record-item{border:1px solid var(--border);border-radius:9px;padding:12px;margin:0 0 8px}
+.record-url{font-size:12px;font-weight:750;word-break:break-all}.record-meta{margin-top:7px;color:#7e8ca1;font-size:11px;line-height:1.6}
+.empty{font-size:12px;color:#8996a8;text-align:center;padding:24px 8px}
+.clear-records{color:#b3414e}
+@media (min-width:700px) and (orientation:landscape){
+  .game-layout{grid-template-columns:minmax(0,1fr) minmax(225px,282px)}
+}
+@media (max-width:999px) and (orientation:portrait), (max-width:699px), (max-height:540px) and (pointer:coarse){
+ .mast{height:52px;padding:0 13px}
+ .logo{font-size:14px}.logo-mark{height:20px;width:20px}
+ .text-button{padding:8px;font-size:11px}
+ .home{min-height:calc(100dvh - 52px)}
+ .game-layout{display:flex;flex-direction:column;gap:0;padding:0 0 22px;min-height:calc(100dvh - 52px)}
+ .sidebar{display:contents}
+ .stat-panel{order:1;border:none;border-radius:0;background:transparent;padding:12px 14px 9px}
+ .stat-panel .section-title{display:none}
+ .stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}
+ .stat{background:#fff;border:1px solid var(--border);border-radius:8px;text-align:center;padding:10px 3px 9px}
+ .stat .key{font-size:10px;margin-bottom:6px}
+ .stat .value{font-size:clamp(15px,4.9vw,23px)}
+ .board-panel{order:2;width:100%;display:flex;flex-direction:column}
+ .board-top{width:100%;min-height:40px;padding:0 14px;margin:0}
+ .canvas-wrap{width:100%;border-left:0;border-right:0;border-radius:0}
+ .control-panel{order:3;margin:13px 14px 0;border-radius:12px;padding:16px}
+ .control-panel .section-title{margin-bottom:10px}
+ .actions{grid-template-columns:repeat(4,1fr);gap:6px}
+ .actions .btn{font-size:11px;padding:9px 2px;min-height:42px}
+ .instructions{margin-top:10px;padding-top:10px}
+ .scan-status{align-self:stretch;padding:10px 14px;text-align:center}
+}
+@media (min-width:700px) and (orientation:landscape) and (max-width:1050px){
+ .game-layout{gap:14px;padding:10px 14px 14px}
+ .board-top,.canvas-wrap{width:min(calc(100dvh - 107px),100%)}
+ .stat-panel,.control-panel{padding:13px}
+ .stat{padding:11px 10px}.stat .value{font-size:20px}
+}
+@media (max-height:540px) and (pointer:coarse){.game-layout{padding:0 0 22px;gap:0}.board-top,.canvas-wrap{width:100%}}
+@media(max-width:370px){
+ .board-top{padding:0 7px}.zoom-value{min-width:31px}.small-tool{min-width:28px;padding:4px}.small-tool.word{min-width:54px;padding:5px 6px}
+ .actions .btn{font-size:10px}
+}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+ <header class="mast">
+  <div class="logo"><span class="logo-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>QR迷路</div>
+  <div class="mast-side"><button class="text-button" id="recordsTop">記録</button><button class="text-button" id="soundTop" aria-pressed="false">音 OFF</button></div>
+ </header>
+ <main>
+  <section class="page active home" id="homePage">
+   <div class="setup">
+    <h1>QRコード迷路を作る</h1>
+    <div class="field"><label class="field-label" for="urlInput">URL</label><div class="input-row"><input id="urlInput" type="url" inputmode="url" autocomplete="url" spellcheck="false" maxlength="500" placeholder="https://example.com"><button id="clearInput" class="erase" aria-label="入力を消す">×</button></div></div>
+    <div class="field"><div class="field-label" id="diffTitle">難易度</div><div class="difficulty-row" role="radiogroup" aria-labelledby="diffTitle">
+      <label class="diff"><input type="radio" name="difficulty" value="easy" checked><span class="diff-card"><span class="diff-name">かんたん</span><span class="diff-detail">約30歩</span></span></label>
+      <label class="diff"><input type="radio" name="difficulty" value="normal"><span class="diff-card"><span class="diff-name">ふつう</span><span class="diff-detail">約80歩</span></span></label>
+      <label class="diff"><input type="radio" name="difficulty" value="hard"><span class="diff-card"><span class="diff-name">むずかしい</span><span class="diff-detail">約150歩</span></span></label>
+    </div></div>
+    <button class="btn primary start-btn" id="startBtn">スタート <span aria-hidden="true">→</span></button>
+    <p class="error" role="alert" id="startError"></p>
+   </div>
+  </section>
+  <section class="page" id="gamePage">
+   <div class="game-layout">
+    <div class="board-panel">
+     <div class="board-top">
+      <div class="board-meta"><span class="url-display" id="gameUrl"></span><span id="diffTag" class="diff-tag">かんたん</span></div>
+      <div class="board-tools">
+       <button class="small-tool" id="zoomOut" aria-label="縮小" title="縮小">−</button>
+       <span class="zoom-value" id="zoomValue">100%</span>
+       <button class="small-tool" id="zoomIn" aria-label="拡大" title="拡大">+</button>
+       <button class="small-tool word" id="zoomFit" title="等倍に戻す">等倍</button>
+       <button class="small-tool word" id="scanBtn" aria-pressed="false">読み取り</button>
+      </div>
+     </div>
+     <div class="canvas-wrap"><canvas id="mazeCanvas" class="board" width="840" height="840" tabindex="0" aria-label="QRコード迷路。PCでは矢印キー、スマホではスワイプで移動"></canvas></div>
+     <div class="scan-status" id="scanStatus" aria-live="polite">読み取り表示中 · タイマー停止</div>
+    </div>
+    <aside class="sidebar">
+     <section class="stat-panel" aria-label="プレイ状況"><h2 class="section-title">プレイ状況</h2><div class="stats">
+      <div class="stat"><div class="key">時間</div><div class="value" id="timerValue">00:00</div></div>
+      <div class="stat"><div class="key">歩数</div><div class="value" id="stepsValue">0</div></div>
+      <div class="stat"><div class="key">ワープ</div><div class="value" id="warpsValue">0</div></div>
+      <div class="stat"><div class="key">ヒント残り</div><div class="value" id="hintsValue">∞</div></div>
+     </div></section>
+     <section class="control-panel" aria-label="ゲーム操作"><h2 class="section-title">ゲーム操作</h2>
+      <div class="actions"><button class="btn accent" id="hintBtn">ヒント</button><button class="btn" id="restartBtn">やり直す</button><button class="btn" id="qrBtn">QR保存</button><button class="btn" id="changeBtn">URL変更</button></div>
+      <div class="instructions"><span class="pc-help">矢印キー</span><span class="touch-help"> / スワイプ</span>で移動。紫の地点は自動ワープ。</div>
+      <div class="legend"><span><i style="background:#35bdfa"></i>現在地</span><span><i style="background:#41be77"></i>ゴール</span><span><i style="background:#a789e9"></i>ワープ</span></div>
+     </section>
+    </aside>
+   </div>
+  </section>
+ </main>
+</div>
+<div class="toast" role="status" aria-live="polite" id="toast"></div>
+<div class="modal-wrap" id="modal" role="presentation"><section class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalHeading"><button id="modalClose" class="modal-close" aria-label="閉じる">×</button><div id="modalContents"></div></section></div>
+<script>
+// QR byte-mode encoder; Reed-Solomon correction, versions 1-40, EC level M.
+// The QR code data matrix is preserved; game decorations are rendered separately.
+const QR_BLOCK_M = [[1,26,16],[1,44,28],[1,70,44],[2,50,32],[2,67,43],[4,43,27],[4,49,31],[2,60,38,2,61,39],[3,58,36,2,59,37],[4,69,43,1,70,44],[1,80,50,4,81,51],[6,58,36,2,59,37],[8,59,37,1,60,38],[4,64,40,5,65,41],[5,65,41,5,66,42],[7,73,45,3,74,46],[10,74,46,1,75,47],[9,69,43,4,70,44],[3,70,44,11,71,45],[3,67,41,13,68,42],[17,68,42],[17,74,46],[4,75,47,14,76,48],[6,73,45,14,74,46],[8,75,47,13,76,48],[19,74,46,4,75,47],[22,73,45,3,74,46],[3,73,45,23,74,46],[21,73,45,7,74,46],[19,75,47,10,76,48],[2,74,46,29,75,47],[10,74,46,23,75,47],[14,74,46,21,75,47],[14,74,46,23,75,47],[12,75,47,26,76,48],[6,75,47,34,76,48],[29,74,46,14,75,47],[13,74,46,32,75,47],[40,75,47,7,76,48],[18,75,47,31,76,48]];
+const QR_ALIGN = [[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]];
+function gfMult(a,b){ let out=0; while(b){ if(b&1)out^=a; a<<=1; if(a&256)a^=0x11d; b>>=1; } return out; }
+function gfPow(e){let v=1;for(let i=0;i<e;i++)v=gfMult(v,2);return v;}
+const polyCache=new Map();
+function rsGenerator(len){
+  if(polyCache.has(len))return polyCache.get(len);
+  let p=[1];
+  for(let i=0;i<len;i++){
+    const q=Array(p.length+1).fill(0);
+    const pow=gfPow(i);
+    for(let j=0;j<p.length;j++){q[j]^=p[j];q[j+1]^=gfMult(p[j],pow);}
+    p=q;
+  }
+  polyCache.set(len,p);return p;
+}
+function rsEcc(data,len){
+  const gen=rsGenerator(len),rem=Array(len).fill(0);
+  for(const byte of data){
+    const factor=byte^rem.shift();rem.push(0);
+    for(let i=0;i<len;i++)rem[i]^=gfMult(gen[i+1],factor);
+  }
+  return rem;
+}
+function bitsToBytes(bits){let out=[];for(let i=0;i<bits.length;i+=8){let b=0;for(let j=0;j<8;j++)b=(b<<1)|(bits[i+j]?1:0);out.push(b);}return out;}
+function qrData(url,version){
+  const bytes=[...new TextEncoder().encode(url)];
+  const blocks=[];
+  const spec=QR_BLOCK_M[version-1];
+  for(let i=0;i<spec.length;i+=3)for(let c=0;c<spec[i];c++)blocks.push({total:spec[i+1],data:spec[i+2]});
+  const limit=blocks.reduce((s,b)=>s+b.data*8,0);
+  const b=[];
+  const put=(value,n)=>{for(let i=n-1;i>=0;i--)b.push((value>>>i)&1);};
+  put(4,4);put(bytes.length,version<10?8:16);
+  for(const x of bytes)put(x,8);
+  if(b.length>limit)throw new Error('URLが長すぎます。より短いURLでお試しください。');
+  put(0,Math.min(4,limit-b.length));
+  while(b.length%8)b.push(0);
+  let idx=0;
+  while(b.length<limit){put((idx++%2===0)?0xec:0x11,8);}
+  const raw=bitsToBytes(b);let offset=0;
+  const d=[],e=[];
+  for(const block of blocks){
+    const arr=raw.slice(offset,offset+block.data);offset+=block.data;
+    d.push(arr);e.push(rsEcc(arr,block.total-block.data));
+  }
+  let output=[];
+  const maxD=Math.max(...d.map(a=>a.length)),maxE=Math.max(...e.map(a=>a.length));
+  for(let j=0;j<maxD;j++)for(const arr of d)if(j<arr.length)output.push(arr[j]);
+  for(let j=0;j<maxE;j++)for(const arr of e)if(j<arr.length)output.push(arr[j]);
+  return output;
+}
+function bchCode(data,poly,shift){
+  let d=data<<shift;
+  const degree=x=>x===0?0:Math.floor(Math.log2(x))+1;
+  while(degree(d)>=degree(poly))d^=poly<<(degree(d)-degree(poly));
+  return (data<<shift)|d;
+}
+function qrMask(m,r,c){
+  switch(m){case 0:return (r+c)%2===0;case 1:return r%2===0;case 2:return c%3===0;
+    case 3:return (r+c)%3===0;case 4:return (Math.floor(r/2)+Math.floor(c/3))%2===0;
+    case 5:return ((r*c)%2+(r*c)%3)===0;
+    case 6:return ((r*c)%2+(r*c)%3)%2===0;
+    default:return ((r*c)%3+(r+c)%2)%2===0;
+  }
+}
+function qrPattern(version,codewords,mask){
+  const n=17+version*4;
+  const mat=Array.from({length:n},()=>Array(n).fill(null));
+  function set(r,c,value){if(r>=0&&r<n&&c>=0&&c<n)mat[r][c]=value?1:0;}
+  function finder(r,c){
+    for(let y=-1;y<=7;y++)for(let x=-1;x<=7;x++){
+      const on=(y>=0&&y<=6&&x>=0&&x<=6&&(
+        y===0||y===6||x===0||x===6||(y>=2&&y<=4&&x>=2&&x<=4)));
+      set(r+y,c+x,on);
+    }
+  }
+  finder(0,0);finder(0,n-7);finder(n-7,0);
+  for(const row of QR_ALIGN[version-1])for(const col of QR_ALIGN[version-1]){
+    if(mat[row][col]!==null)continue;
+    for(let r=-2;r<=2;r++)for(let c=-2;c<=2;c++)set(row+r,col+c,Math.abs(r)===2||Math.abs(c)===2||(r===0&&c===0));
+  }
+  for(let i=8;i<n-8;i++){
+    if(mat[i][6]===null)set(i,6,i%2===0);
+    if(mat[6][i]===null)set(6,i,i%2===0);
+  }
+  const fb=bchCode(mask,0x537,10)^0x5412;
+  for(let i=0;i<15;i++){
+    const v=(fb>>i)&1;
+    if(i<6)set(i,8,v);else if(i<8)set(i+1,8,v);else set(n-15+i,8,v);
+    if(i<8)set(8,n-i-1,v);else if(i<9)set(8,15-i,v);else set(8,15-i-1,v);
+  }
+  set(n-8,8,1);
+  if(version>=7){
+    const vb=bchCode(version,0x1f25,12);
+    for(let i=0;i<18;i++){
+      const v=(vb>>i)&1;
+      set(Math.floor(i/3),i%3+n-11,v);
+      set(i%3+n-11,Math.floor(i/3),v);
+    }
+  }
+  let row=n-1,dir=-1,word=0,bit=7;
+  for(let rawCol=n-1;rawCol>0;rawCol-=2){
+    const col=rawCol<=6?rawCol-1:rawCol;
+    while(true){
+      for(let k=0;k<2;k++){
+        const c=col-k;
+        if(mat[row][c]!==null)continue;
+        let dark=word<codewords.length?((codewords[word]>>bit)&1):0;
+        if(qrMask(mask,row,c))dark^=1;
+        mat[row][c]=dark;
+        bit--;
+        if(bit<0){word++;bit=7;}
+      }
+      row+=dir;
+      if(row<0||row>=n){row-=dir;dir=-dir;break;}
+    }
+  }
+  return mat;
+}
+function qrPenalty(m){
+  const n=m.length;let score=0,dark=0;
+  const linePenalty=line=>{
+    let p=0,run=1;
+    for(let i=1;i<n;i++){
+      if(line[i]===line[i-1])run++;
+      else{if(run>=5)p+=3+run-5;run=1;}
+    }
+    if(run>=5)p+=3+run-5;
+    for(let i=0;i<=n-11;i++){
+      const pattern=line.slice(i,i+11).join('');
+      if(pattern==='10111010000'||pattern==='00001011101')p+=40;
+    }
+    return p;
+  };
+  for(let r=0;r<n;r++){
+    score+=linePenalty(m[r]);
+    score+=linePenalty(Array.from({length:n},(_,c)=>m[c][r]));
+    for(let c=0;c<n;c++){
+      dark+=m[r][c];
+      if(r<n-1&&c<n-1){const s=m[r][c];if(s===m[r+1][c]&&s===m[r][c+1]&&s===m[r+1][c+1])score+=3;}
+    }
+  }
+  score+=10*Math.floor(Math.abs(dark*100/(n*n)-50)/5);
+  return score;
+}
+function generateQr(url,difficulty){
+  const minVersion={easy:1,normal:5,hard:10}[difficulty]||1;
+  let version=minVersion,codewords;
+  for(;version<=40;version++){
+    try{codewords=qrData(url,version);break;}catch(e){if(version===40)throw e;}
+  }
+  let best=null,penalty=Infinity;
+  for(let mask=0;mask<8;mask++){
+    if(mask===1)continue; // マスク1は一部の長いURLで読み取りアプリとの相性が悪いため使わない
+    const m=qrPattern(version,codewords,mask),p=qrPenalty(m);
+    if(p<penalty){penalty=p;best=m;}
+  }
+  return {modules:best,version,size:best.length,url};
+}
+
+
+'use strict';
+
+const $=id=>document.getElementById(id);
+const DIFFS={easy:{name:'かんたん',hints:Infinity,count:1},normal:{name:'ふつう',hints:3,count:3},hard:{name:'むずかしい',hints:0,count:5}};
+const dirs=[{dr:-1,dc:0,arrow:'↑'},{dr:1,dc:0,arrow:'↓'},{dr:0,dc:-1,arrow:'←'},{dr:0,dc:1,arrow:'→'}];
+let game=null,modalName=null,lastFrame=performance.now(),soundOn=false,soundCtx=null,toastTimeout=0;
+const STORAGE_KEY='qrmaze-best-v2';
+let records={};
+try{records=JSON.parse(localStorage.getItem(STORAGE_KEY)||localStorage.getItem('qrmaze-best-v1')||'{}')||{};}catch(e){records={};}
+function saveRecords(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(records));return true;}catch(e){return false;}}
+function toast(msg){$('toast').textContent=msg;$('toast').classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>$('toast').classList.remove('show'),2100);}
+function sound(type){if(!soundOn)return;try{soundCtx ||= new (window.AudioContext||window.webkitAudioContext)();if(soundCtx.state==='suspended')soundCtx.resume();let now=soundCtx.currentTime;const tone=(start,len,freq,vol=.035)=>{let osc=soundCtx.createOscillator(),gain=soundCtx.createGain();osc.type='sine';osc.frequency.setValueAtTime(freq,start);gain.gain.setValueAtTime(.001,start);gain.gain.exponentialRampToValueAtTime(vol,start+.009);gain.gain.exponentialRampToValueAtTime(.001,start+len);osc.connect(gain).connect(soundCtx.destination);osc.start(start);osc.stop(start+len+.02);};if(type==='step')tone(now,.05,400,.012);if(type==='warp'){tone(now,.14,520);tone(now+.1,.16,730);}if(type==='win'){tone(now,.12,523);tone(now+.13,.12,659);tone(now+.25,.28,784);}if(type==='hint')tone(now,.10,740,.018);}catch(e){}}
+function switchSound(){soundOn=!soundOn;$('soundTop').textContent=soundOn?'音 ON':'音 OFF';$('soundTop').setAttribute('aria-pressed',String(soundOn));if(soundOn)sound('hint');}
+function normalizeUrl(raw){
+ raw=raw.trim();if(!raw)throw new Error('URLを入力してください。');
+ let parsed;try{parsed=new URL(raw);}catch(e){throw new Error('URLの形式を確認してください。');}
+ if(!['https:','http:'].includes(parsed.protocol)||!parsed.hostname)throw new Error('http:// または https:// のURLを入力してください。');
+ if(parsed.username||parsed.password)throw new Error('ログイン情報を含むURLは使用できません。');
+ if(parsed.href.length>500)throw new Error('500文字以下のURLを使用してください。');
+ return parsed.href;
+}
+const i2rc=(index,n)=>({r:Math.floor(index/n),c:index%n});
+// Match the chosen difficulty to a measured shortest path, not merely to QR pixel density.
+// Each selected white connected component contributes one continuous leg.
+// One-way traversal is guaranteed by a pair of symmetric portals between consecutive legs.
+const COURSE_RULES={
+ easy:{steps:32,minSegments:1},
+ normal:{steps:78,minSegments:3},
+ hard:{steps:150,minSegments:6}
+};
+function buildMaze(qr,diff){
+ const n=qr.size,m=qr.modules,size=n*n;
+ const componentId=new Int32Array(size).fill(-1),comps=[];
+ const neighbors=(index,callback)=>{const r=Math.floor(index/n),c=index%n;if(r>0)callback(index-n);if(r<n-1)callback(index+n);if(c>0)callback(index-1);if(c<n-1)callback(index+1);};
+ for(let i=0;i<size;i++){
+  if(m[Math.floor(i/n)][i%n]!==0||componentId[i]>=0)continue;
+  const id=comps.length,cells=[i];componentId[i]=id;
+  for(let h=0;h<cells.length;h++){
+   neighbors(cells[h],j=>{if(componentId[j]<0&&m[Math.floor(j/n)][j%n]===0){componentId[j]=id;cells.push(j);}});
+  }
+  comps.push(cells);
+ }
+ // The largest components are not necessarily the ones with the longest routes.
+ // Look for long shortest paths in the most promising components before placing portals.
+ const candidates=[];
+ const largest=comps.slice().sort((a,b)=>b.length-a.length).slice(0,Math.min(comps.length,100));
+ const sweep=(origin,id,withPath=false)=>{
+  const distance=new Int32Array(size).fill(-1),queue=[origin],parent=withPath?new Int32Array(size).fill(-1):null;
+  distance[origin]=0;let far=origin;
+  for(let h=0;h<queue.length;h++){
+   const pos=queue[h];if(distance[pos]>distance[far])far=pos;
+   neighbors(pos,j=>{
+    if(distance[j]<0&&componentId[j]===id){distance[j]=distance[pos]+1;if(parent)parent[j]=pos;queue.push(j);}
+   });
+  }
+  return {far,distance:distance[far],parent};
+ };
+ for(const cells of largest){
+  if(cells.length<7)continue;
+  const id=componentId[cells[0]],a=sweep(cells[0],id).far;
+  const end=sweep(a,id,true);
+  if(end.distance<6)continue;
+  const path=[];
+  for(let pos=end.far;pos!==a;pos=end.parent[pos])path.push(pos);
+  path.push(a);path.reverse();
+  // Prefer routes with some junctions when choosing between similarly long corridors.
+  let junctions=0;
+  for(const pos of path){let degree=0;neighbors(pos,j=>{if(componentId[j]===id)degree++;});if(degree>=3)junctions++;}
+  candidates.push({path,capacity:path.length-1,junctions});
+ }
+ candidates.sort((a,b)=>b.capacity-a.capacity||b.junctions-a.junctions);
+ const rule=COURSE_RULES[diff]||COURSE_RULES.easy;
+ const chosen=[];let capacity=0;
+ for(const c of candidates){
+  chosen.push(c);capacity+=c.capacity;
+  if(chosen.length>=rule.minSegments&&capacity>=rule.steps)break;
+ }
+ if(!chosen.length)throw new Error('このURLから迷路の通路を作れませんでした。');
+ // Extremely unusual QR patterns can have less corridor space; use every reachable
+ // component instead of declaring a game impossible. Standard patterns reach the target.
+ const target=Math.min(rule.steps,capacity);
+ const lengths=chosen.map(c=>Math.min(6,c.capacity));
+ let remaining=target-lengths.reduce((a,b)=>a+b,0);
+ if(remaining<0){
+  // A very short fallback still needs at least one move per selected leg.
+  for(let i=lengths.length-1;i>=0&&remaining<0;i--){const take=Math.min(lengths[i]-1,-remaining);lengths[i]-=take;remaining+=take;}
+ }
+ // Share the requested distance across legs, rather than making one long leg
+ // followed by a series of almost-instant portals.
+ while(remaining>0){
+  let changed=false;
+  for(let i=0;i<chosen.length&&remaining>0;i++){
+   if(lengths[i]<chosen[i].capacity){lengths[i]++;remaining--;changed=true;}
+  }
+  if(!changed)break;
+ }
+ const ends=chosen.map((c,i)=>({a:c.path[0],b:c.path[lengths[i]]}));
+ const portals=new Map(),portalPairs=[];
+ for(let i=0;i<ends.length-1;i++){
+  const one=ends[i].b,two=ends[i+1].a;
+  portals.set(one,two);portals.set(two,one);portalPairs.push([one,two]);
+ }
+ const maze={n,componentId,portals,portalPairs,start:ends[0].a,goal:ends.at(-1).b,qr,neighbors};
+ maze.shortest=findPath(maze,maze.start,maze.goal).length;
+ if(maze.shortest===0)throw new Error('迷路の経路を作成できませんでした。');
+ return maze;
+}
+function findPath(maze,start,goal){
+  if(start===goal)return [];
+  const size=maze.n*maze.n,parent=new Int32Array(size).fill(-1),moves=new Int8Array(size),queue=[start];parent[start]=start;
+  for(let head=0;head<queue.length&&parent[goal]<0;head++){
+    const i=queue[head],r=Math.floor(i/maze.n),c=i%maze.n;
+    for(let dir=0;dir<4;dir++){
+      const d=dirs[dir],nr=r+d.dr,nc=c+d.dc;
+      if(nr<0||nc<0||nr>=maze.n||nc>=maze.n||maze.qr.modules[nr][nc]!==0)continue;
+      const adj=nr*maze.n+nc,next=maze.portals.has(adj)?maze.portals.get(adj):adj;
+      if(parent[next]>=0)continue;
+      parent[next]=i;moves[next]=dir;queue.push(next);
+    }
+  }
+  if(parent[goal]<0)return [];
+  const path=[];let i=goal;
+  while(i!==start){path.push(moves[i]);i=parent[i];}
+  return path.reverse();
+}
+
+function startGame(){
+ $('startError').style.display='none';
+ try{
+  const url=normalizeUrl($('urlInput').value),diff=document.querySelector('input[name="difficulty"]:checked').value;
+  const qr=generateQr(url,diff),maze=buildMaze(qr,diff);
+  game={url,diff,qr,maze,position:maze.start,steps:0,warpCount:0,hintsUsed:0,hintsLeft:DIFFS[diff].hints,elapsed:0,zoom:1,done:false,hintDir:null,warpUntil:0,scanMode:false};
+  $('homePage').classList.remove('active');$('gamePage').classList.add('active');
+  $('diffTag').textContent=DIFFS[diff].name;
+  $('gameUrl').textContent=new URL(url).hostname.replace(/^www\./,'');$('gameUrl').title=url;
+  $('zoomValue').textContent='100%';$('scanBtn').textContent='読み取り';$('scanBtn').classList.remove('active');$('scanBtn').setAttribute('aria-pressed','false');$('scanStatus').classList.remove('show');
+  prepareCleanCanvas(qr);paintStaticQr(qr);syncCanvasResolution();updateHud();lastFrame=performance.now();
+  window.scrollTo(0,0);
+  $('mazeCanvas').focus({preventScroll:true});
+  if(qr.version>{easy:1,normal:5,hard:10}[diff])toast('URLの長さに合わせてQRを調整しました');
+ }catch(err){$('startError').textContent=err.message||'迷路を生成できませんでした。';$('startError').style.display='block';}
+}
+function updateHud(){if(!game)return;
+ $('timerValue').textContent=formatTime(game.elapsed);
+ $('stepsValue').textContent=game.steps;
+ $('warpsValue').textContent=game.warpCount;
+ $('hintsValue').textContent=game.hintsLeft===Infinity?'∞':game.hintsLeft;
+ $('hintBtn').disabled=game.done||game.hintsLeft===0||game.scanMode;
+}
+function formatTime(ms,decimal=false){const s=Math.floor(ms/1000),m=Math.floor(s/60);return `${String(m).padStart(2,'0')}:${String(s%60).padStart(2,'0')}${decimal?'.'+String(Math.floor(ms%1000/10)).padStart(2,'0'):''}`;}
+let cleanCanvas=document.createElement('canvas'),staticCanvas=document.createElement('canvas');
+function syncCanvasResolution(){
+ const canvas=$('mazeCanvas');if(!canvas)return;
+ const pixels=Math.max(120,Math.round(canvas.getBoundingClientRect().width*(window.devicePixelRatio||1)));
+ if(canvas.width!==pixels){canvas.width=pixels;canvas.height=pixels;}
+}
+window.addEventListener('resize',syncCanvasResolution);
+if(window.ResizeObserver)new ResizeObserver(()=>{if(game)syncCanvasResolution();}).observe($('mazeCanvas'));
+
+function prepareCleanCanvas(qr){
+ const n=qr.size,px=Math.max(6,Math.floor(1100/(n+8))),quiet=4;
+ cleanCanvas.width=cleanCanvas.height=(n+quiet*2)*px;
+ const ctx=cleanCanvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,cleanCanvas.width,cleanCanvas.height);ctx.fillStyle='#000';
+ for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(qr.modules[r][c])ctx.fillRect((c+quiet)*px,(r+quiet)*px,px,px);
+}
+function paintStaticQr(qr){
+ const q=4,n=qr.size,total=n+2*q;
+ staticCanvas.width=staticCanvas.height=total;const ctx=staticCanvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,total,total);ctx.fillStyle='#000';
+ for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(qr.modules[r][c])ctx.fillRect(c+q,r+q,1,1);
+}
+function move(dir){
+ if(!game||game.done||game.scanMode||modalName!==null)return;
+ const g=game,n=g.maze.n,p=i2rc(g.position,n),d=dirs[dir],nr=p.r+d.dr,nc=p.c+d.dc;
+ if(nr<0||nc<0||nr>=n||nc>=n||g.qr.modules[nr][nc]!==0)return;
+ let next=nr*n+nc,warped=false;
+ if(g.maze.portals.has(next)){next=g.maze.portals.get(next);warped=true;}
+ g.position=next;g.steps++;g.hintDir=null;
+ if(warped){g.warpCount++;g.warpUntil=performance.now()+420;sound('warp');}else sound('step');
+ if(next===g.maze.goal)winGame();
+ updateHud();
+}
+function hint(){
+ if(!game||game.done||game.scanMode)return;
+ if(game.hintsLeft===0){toast('ヒントは使えません');return;}
+ const path=findPath(game.maze,game.position,game.maze.goal);
+ if(!path.length){toast('経路が見つかりません');return;}
+ game.hintDir=path[0];game.hintsUsed++;
+ if(Number.isFinite(game.hintsLeft))game.hintsLeft--;
+ updateHud();sound('hint');
+}
+function restart(){
+ if(!game)return;
+ game.position=game.maze.start;game.steps=0;game.warpCount=0;game.hintsUsed=0;game.hintsLeft=DIFFS[game.diff].hints;game.elapsed=0;game.done=false;game.hintDir=null;game.zoom=1;game.scanMode=false;
+ $('zoomValue').textContent='100%';$('scanBtn').textContent='読み取り';$('scanBtn').classList.remove('active');$('scanBtn').setAttribute('aria-pressed','false');$('scanStatus').classList.remove('show');
+ lastFrame=performance.now();updateHud();closeModal();
+}
+function goHome(){closeModal();$('gamePage').classList.remove('active');$('homePage').classList.add('active');game=null;window.scrollTo(0,0);}
+function winGame(){
+ game.done=true;sound('win');
+ const shortest=game.maze.shortest,conditions=[game.elapsed<=Math.max(30000,shortest*3000),game.steps<=shortest*1.5,game.hintsUsed===0];
+ const passed=conditions.filter(Boolean).length,stars=passed>=3?3:passed===2?2:1;
+ game.stars=stars;
+ const key=game.url+'|'+game.diff,prev=records[key]||{};
+ records[key]={url:game.url,diff:game.diff,stars:Math.max(stars,prev.stars||0),fastest:Math.min(game.elapsed,prev.fastest??Infinity),fewest:Math.min(game.steps,prev.fewest??Infinity),plays:(prev.plays||0)+1,updated:Date.now()};
+ const saved=saveRecords();
+ showModal('result',`
+  <h2 id="modalHeading" class="modal-title">CLEAR</h2>
+  <div class="result-stars" aria-label="星${stars}つ">${'★'.repeat(stars)}<span style="color:#dce3ec">${'☆'.repeat(3-stars)}</span></div>
+  <div class="result-sub">${stars===3?'PERFECT':stars===2?'GOOD':'COMPLETED'}</div>
+  <div class="result-stats"><div class="result-stat"><div class="label">時間</div><div class="value">${formatTime(game.elapsed,true)}</div></div><div class="result-stat"><div class="label">歩数</div><div class="value">${game.steps}</div></div><div class="result-stat"><div class="label">ヒント</div><div class="value">${game.hintsUsed}</div></div></div>
+  <p class="fine">最短 ${shortest} 歩${saved?' · 自己ベスト保存済み':''}</p>
+  <div class="modal-actions"><button class="btn primary" id="resultQr">QRコードを見る</button><button class="btn" id="resultAgain">もう一度</button><button class="btn" id="resultHome">URL変更</button></div>`);
+ $('resultQr').onclick=showQr;$('resultAgain').onclick=restart;$('resultHome').onclick=goHome;
+}
+function showQr(){if(!game)return;
+ showModal('qr',`<h2 id="modalHeading" class="modal-title">QRコード</h2><div class="qr-box" id="qrDisplay"></div><p class="fine" id="qrAddress"></p><div class="modal-actions"><button class="btn primary" id="downloadQr">PNGを保存</button><button class="btn" id="openUrl">URLを開く</button><button class="btn" id="closeQr">戻る</button></div>`);
+ const shown=cleanCanvas.cloneNode();shown.getContext('2d').drawImage(cleanCanvas,0,0);$('qrDisplay').appendChild(shown);$('qrAddress').textContent=game.url;
+ $('downloadQr').onclick=downloadQr;$('openUrl').onclick=()=>window.open(game.url,'_blank','noopener,noreferrer');$('closeQr').onclick=closeModal;
+}
+function downloadQr(){if(!game)return;const a=document.createElement('a');a.href=cleanCanvas.toDataURL('image/png');a.download=`qr-maze-${game.diff}.png`;document.body.appendChild(a);a.click();a.remove();}
+function showRecords(){
+ const items=Object.values(records).filter(Boolean).sort((a,b)=>(b.updated||0)-(a.updated||0));
+ showModal('records',`<h2 id="modalHeading" class="modal-title">自己ベスト</h2><div class="record-list" id="recordList"></div><div class="modal-actions"><button class="btn clear-records" id="deleteRecords" ${!items.length?'disabled':''}>記録を削除</button><button class="btn" id="closeRecords">閉じる</button></div>`);
+ if(!items.length)$('recordList').innerHTML='<div class="empty">記録はありません</div>';
+ else for(const record of items){
+  const el=document.createElement('div');el.className='record-item';const url=document.createElement('div');url.className='record-url';url.textContent=record.url||'';
+  const meta=document.createElement('div');meta.className='record-meta';meta.textContent=`${DIFFS[record.diff]?.name||record.diff} · ${'★'.repeat(record.stars||1)} · ${formatTime(record.fastest||0,true)} · ${record.fewest}歩 · ${record.plays}回`;
+  el.append(url,meta);$('recordList').appendChild(el);
+ }
+ $('deleteRecords').onclick=()=>{if(!window.confirm('保存している記録をすべて削除しますか？'))return;records={};saveRecords();showRecords();};
+ $('closeRecords').onclick=closeModal;
+}
+function showModal(name,html){modalName=name;$('modalContents').innerHTML=html;$('modal').classList.add('open');$('modalClose').focus({preventScroll:true});}
+function closeModal(){modalName=null;$('modal').classList.remove('open');$('modalContents').innerHTML='';lastFrame=performance.now();}
+function setZoom(next){if(!game||game.scanMode)return;game.zoom=Math.max(1,Math.min(6,Math.round(next*10)/10));$('zoomValue').textContent=Math.round(game.zoom*100)+'%';}
+function toggleScan(){if(!game)return;
+ game.scanMode=!game.scanMode;
+ if(game.scanMode){game.zoom=1;$('zoomValue').textContent='100%';}
+ $('scanBtn').textContent=game.scanMode?'戻る':'読み取り';
+ $('scanBtn').classList.toggle('active',game.scanMode);
+ $('scanBtn').setAttribute('aria-pressed',String(game.scanMode));
+ $('scanStatus').classList.toggle('show',game.scanMode);
+ $('zoomOut').disabled=game.scanMode;$('zoomIn').disabled=game.scanMode;$('zoomFit').disabled=game.scanMode;
+ updateHud();lastFrame=performance.now();
+}
+function renderBoard(){
+ if(!game)return;const canvas=$('mazeCanvas'),ctx=canvas.getContext('2d'),g=game,n=g.qr.size,W=canvas.width;
+ ctx.fillStyle='#fff';ctx.fillRect(0,0,W,W);
+ const total=n+8,unit=Math.max(1,Math.floor(W/total)),scale=unit*g.zoom;
+ const center=g.zoom===1?{r:n/2,c:n/2}:{r:Math.floor(g.position/n)+.5,c:g.position%n+.5};
+ const offset=g.zoom===1?Math.floor((W-total*scale)/2)+4*scale:null;
+ const ox=offset===null?W/2-center.c*scale:offset,oy=offset===null?W/2-center.r*scale:offset;
+ ctx.save();ctx.beginPath();ctx.rect(0,0,W,W);ctx.clip();ctx.imageSmoothingEnabled=false;
+ ctx.drawImage(staticCanvas,ox-4*scale,oy-4*scale,total*scale,total*scale);
+ if(g.scanMode){ctx.restore();return;}
+ const point=i=>({x:ox+(i%n+.5)*scale,y:oy+(Math.floor(i/n)+.5)*scale});
+ // Markers fit within their own white module to preserve the QR pattern and quiet zone.
+ for(const [a,b] of g.maze.portalPairs){
+  for(const idx of [a,b]){
+   const {x,y}=point(idx),r=Math.max(1,scale*.37);
+   ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle='#bba5ee';ctx.fill();
+   ctx.beginPath();ctx.arc(x,y,r*.55,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
+  }
+ }
+ const goal=point(g.maze.goal);
+ ctx.beginPath();ctx.arc(goal.x,goal.y,Math.max(1,scale*.35),0,Math.PI*2);ctx.fillStyle='#43ba86';ctx.fill();
+ const player=point(g.position),radius=Math.max(1,scale*.39);
+ const ball=ctx.createRadialGradient(player.x-radius*.3,player.y-radius*.35,0,player.x,player.y,radius);
+ ball.addColorStop(0,'#cbf7ff');ball.addColorStop(.45,'#58c7fa');ball.addColorStop(1,'#1477df');
+ ctx.beginPath();ctx.arc(player.x,player.y,radius,0,Math.PI*2);ctx.fillStyle=ball;ctx.fill();
+ if(g.hintDir!==null){
+  const d=dirs[g.hintDir],x=player.x+d.dc*scale,y=player.y+d.dr*scale;
+  ctx.font=`bold ${Math.max(9,Math.min(22,scale*.85))}px system-ui`;
+  ctx.textBaseline='middle';ctx.textAlign='center';ctx.fillStyle='#1a63df';ctx.fillText(d.arrow,x,y);
+ }
+ if(performance.now()<g.warpUntil){ctx.beginPath();ctx.arc(player.x,player.y,Math.max(2,scale*.45),0,Math.PI*2);ctx.strokeStyle='#9264d7';ctx.lineWidth=Math.max(1,scale*.12);ctx.stroke();}
+ ctx.restore();
+}
+function frame(now){const dt=Math.max(0,Math.min(180,now-lastFrame));lastFrame=now;
+ if(game&&!game.done&&!game.scanMode&&modalName===null&&!document.hidden){game.elapsed+=dt;updateHud();}
+ renderBoard();requestAnimationFrame(frame);
+}
+let pointers=new Map(),pinchDistance=0,pinchStartZoom=1,pinchUsed=false;
+function pointerDist(){const a=[...pointers.values()];return a.length>=2?Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y):0;}
+$('mazeCanvas').addEventListener('pointerdown',e=>{
+ if(!game||game.done||modalName||game.scanMode)return;
+ pointers.set(e.pointerId,{x:e.clientX,y:e.clientY,startX:e.clientX,startY:e.clientY});
+ try{e.currentTarget.setPointerCapture(e.pointerId);}catch(err){}
+ if(pointers.size>=2){pinchUsed=true;pinchDistance=pointerDist();pinchStartZoom=game.zoom;}
+});
+$('mazeCanvas').addEventListener('pointermove',e=>{
+ const p=pointers.get(e.pointerId);if(!p||!game)return;p.x=e.clientX;p.y=e.clientY;
+ if(pointers.size>=2&&pinchDistance>0){pinchUsed=true;setZoom(pinchStartZoom*pointerDist()/pinchDistance);}
+});
+function pointerEnd(e){const p=pointers.get(e.pointerId);if(!p)return;pointers.delete(e.pointerId);
+ if(!pointers.size&&pinchUsed){pinchUsed=false;pinchDistance=0;return;}
+ if(pinchUsed||!game||game.done||game.scanMode||modalName)return;
+ const dx=e.clientX-p.startX,dy=e.clientY-p.startY;
+ if(Math.max(Math.abs(dx),Math.abs(dy))<18)return;
+ move(Math.abs(dx)>Math.abs(dy)?dx>0?3:2:dy>0?1:0);
+}
+$('mazeCanvas').addEventListener('pointerup',pointerEnd);
+$('mazeCanvas').addEventListener('pointercancel',e=>{pointers.delete(e.pointerId);if(!pointers.size)pinchUsed=false;});
+document.addEventListener('keydown',e=>{
+ if(e.key==='Escape'&&modalName){closeModal();return;}
+ if(!game||game.done||modalName||!$('gamePage').classList.contains('active'))return;
+ const map={ArrowUp:0,ArrowDown:1,ArrowLeft:2,ArrowRight:3};if(!(e.key in map))return;
+ e.preventDefault();move(map[e.key]);
+});
+$('startBtn').onclick=startGame;
+$('urlInput').addEventListener('keydown',e=>{if(e.key==='Enter')startGame();});
+$('clearInput').onclick=()=>{$('urlInput').value='';$('urlInput').focus();};
+$('recordsTop').onclick=showRecords;$('soundTop').onclick=switchSound;
+$('hintBtn').onclick=hint;$('restartBtn').onclick=restart;$('qrBtn').onclick=downloadQr;$('changeBtn').onclick=goHome;
+$('zoomOut').onclick=()=>setZoom(game.zoom-.5);$('zoomIn').onclick=()=>setZoom(game.zoom+.5);$('zoomFit').onclick=()=>setZoom(1);
+$('scanBtn').onclick=toggleScan;
+$('modalClose').onclick=closeModal;
+$('modal').addEventListener('pointerdown',e=>{if(e.target===$('modal'))closeModal();});
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
