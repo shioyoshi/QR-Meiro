@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f7f9fc">
 <meta name="description" content="URLをQRコード迷路に変えるゲーム。難易度は実際の最短ルートで調整。">
-<title>QR迷路</title>
+<title>QRコード迷路</title>
 <style>
 :root{--bg:#f7f9fc;--white:#fff;--ink:#15263e;--muted:#7b889c;--blue:#205fe2;--blue-light:#eef4ff;--border:#e5eaf1;--purple:#9867e7;--green:#15985c}
 *{box-sizing:border-box}
@@ -99,6 +99,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #8bb2ff;outline-offse
 .record-url{font-size:12px;font-weight:750;word-break:break-all}.record-meta{margin-top:7px;color:#7e8ca1;font-size:11px;line-height:1.6}
 .empty{font-size:12px;color:#8996a8;text-align:center;padding:24px 8px}
 .clear-records{color:#b3414e}
+.site-footer{max-width:1600px;margin:0 auto;padding:0 24px 18px;text-align:center;color:#8b96a8;font-size:10px;line-height:1.7}
 @media (min-width:700px) and (orientation:landscape){
   .game-layout{grid-template-columns:minmax(0,1fr) minmax(225px,282px)}
 }
@@ -124,6 +125,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #8bb2ff;outline-offse
  .actions .btn{font-size:11px;padding:9px 2px;min-height:42px}
  .instructions{margin-top:10px;padding-top:10px}
  .scan-status{align-self:stretch;padding:10px 14px;text-align:center}
+ .site-footer{padding:8px 14px 16px}
 }
 @media (min-width:700px) and (orientation:landscape) and (max-width:1050px){
  .game-layout{gap:14px;padding:10px 14px 14px}
@@ -142,7 +144,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #8bb2ff;outline-offse
 <body>
 <div class="app">
  <header class="mast">
-  <div class="logo"><span class="logo-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>QR迷路</div>
+  <div class="logo"><span class="logo-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>QRコード迷路</div>
   <div class="mast-side"><button class="text-button" id="recordsTop">記録</button><button class="text-button" id="soundTop" aria-pressed="false">音 OFF</button></div>
  </header>
  <main>
@@ -191,6 +193,7 @@ button:focus-visible,input:focus-visible{outline:3px solid #8bb2ff;outline-offse
    </div>
   </section>
  </main>
+ <footer class="site-footer">QRコードは株式会社デンソーウェーブの登録商標です。このゲームは株式会社デンソーウェーブとは関係ありません。</footer>
 </div>
 <div class="toast" role="status" aria-live="polite" id="toast"></div>
 <div class="modal-wrap" id="modal" role="presentation"><section class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalHeading"><button id="modalClose" class="modal-close" aria-label="閉じる">×</button><div id="modalContents"></div></section></div>
